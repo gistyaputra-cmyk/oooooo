@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cute Basketball Game</title>
+
+<style>
+    body {
+        margin: 0;
+        overflow: hidden;
+        background: #fffce1;
+        font-family: Arial, sans-serif;
+    }
+
+    #hoop {
+        width: 120px;
+        height: 30px;
+        background: #ff6961;
+        position: absolute;
+        top: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        border-radius: 0 0 20px 20px;
+        box-shadow: 0 0 10px #ff8c8c;
+    }
+
+    #ball {
+        width: 60px;
+        height: 60px;
+        background: #ffb347;
+        border-radius: 50%;
+        position: absolute;
+        bottom: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+        box-shadow: 0 0 10px #ffd27f;
+    }
+
+    #score {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        color: #c97a00;
+        font-size: 24px;
+        font-weight: bold;
+    }
+
+    #message {
+        position: absolute;
+        top: 40%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 34px;
+        color: #d88c00;
+        display: none;
+        text-align: center;
+    }
+</style>
+</head>
+<body>
+
+<div id="hoop"></div>
+<div id="ball"></div>
+<div id="score">Skor: 0</div>
+<div id="message"></div>
+
+<script>
+    const ball = document.getElementById("ball");
+    const hoop = document.getElementById("hoop");
+    const scoreDisplay = document.getElementById("score");
+    const message = document.getElementById("message");
+
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+    let score = 0;
+
+    function startDrag(e) {
+        isDragging = true;
+        startX = e.clientX || e.touches[0].clientX;
+        startY = e.clientY || e.touches[0].clientY;
+    }
+
+    function endDrag(e) {
+        if (!isDragging) return;
+        isDragging = false;
+
+        let endX = e.clientX || e.changedTouches[0].clientX;
+        let endY = e.clientY || e.changedTouches[0].clientY;
+
+        let forceX = (endX - startX) * 0.2;
+        let forceY = (endY - startY) * 0.2;
+
+        shootBall(forceX, forceY);
+    }
+
+    function shootBall(forceX, forceY) {
+        let posX = window.innerWidth / 2;
+        let posY = window.innerHeight - 100;
+        let velX = forceX;
+        let velY = -Math.abs(forceY) - 12; 
+
+        function animate() {
+            velY += 0.6;
+            posX += velX;
+            posY += velY;
+
+            ball.style.left = posX + "px";
+            ball.style.top = posY + "px";
+
+            const bRect = ball.getBoundingClientRect();
+            const hRect = hoop.getBoundingClientRect();
+
+            if (
+                bRect.top < hRect.bottom &&
+                bRect.bottom > hRect.top &&
+                bRect.left < hRect.right &&
+                bRect.right > hRect.left
+            ) {
+                score++;
+                scoreDisplay.textContent = "Skor: " + score;
+
+                message.textContent = "Masuk! 🏀";
+                message.style.display = "block";
+                setTimeout(() => message.style.display = "none", 700);
+
+                resetBall();
+                return;
+            }
+
+            if (posY > window.innerHeight) {
+                resetBall();
+                return;
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    }
+
+    function resetBall() {
+        ball.style.left = "50%";
+        ball.style.top = "calc(100% - 100px)";
+    }
+
+    ball.addEventListener("mousedown", startDrag);
+    ball.addEventListener("touchstart", startDrag);
+
+    window.addEventListener("mouseup", endDrag);
+    window.addEventListener("touchend", endDrag);
+</script>
+
+</body>
+</html>
