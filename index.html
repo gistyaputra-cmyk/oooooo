@@ -3,153 +3,189 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cute Basketball Game</title>
-
+<title>Basketball Realistic 1v1</title>
 <style>
     body {
         margin: 0;
-        overflow: hidden;
-        background: #fffce1;
-        font-family: Arial, sans-serif;
+        background: #1d1d1d;
+        font-family: Arial;
     }
-
-    #hoop {
-        width: 120px;
-        height: 30px;
-        background: #ff6961;
-        position: absolute;
-        top: 80px;
-        left: 50%;
-        transform: translateX(-50%);
-        border-radius: 0 0 20px 20px;
-        box-shadow: 0 0 10px #ff8c8c;
+    canvas {
+        display: block;
+        margin: auto;
+        background: #2b2b2b;
     }
-
-    #ball {
-        width: 60px;
-        height: 60px;
-        background: #ffb347;
-        border-radius: 50%;
-        position: absolute;
-        bottom: 40px;
-        left: 50%;
-        transform: translateX(-50%);
-        box-shadow: 0 0 10px #ffd27f;
-    }
-
-    #score {
-        position: absolute;
-        top: 10px;
-        left: 10px;
-        color: #c97a00;
-        font-size: 24px;
-        font-weight: bold;
-    }
-
-    #message {
-        position: absolute;
-        top: 40%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        font-size: 34px;
-        color: #d88c00;
-        display: none;
+    #info {
+        color: white;
         text-align: center;
+        margin-top: 10px;
+        font-size: 20px;
     }
 </style>
 </head>
 <body>
 
-<div id="hoop"></div>
-<div id="ball"></div>
-<div id="score">Skor: 0</div>
-<div id="message"></div>
+<canvas id="game" width="480" height="720"></canvas>
+<div id="info">🔼 Swipe ke atas untuk menembak — ⬅️➡️ untuk bergerak</div>
 
 <script>
-    const ball = document.getElementById("ball");
-    const hoop = document.getElementById("hoop");
-    const scoreDisplay = document.getElementById("score");
-    const message = document.getElementById("message");
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
 
-    let isDragging = false;
-    let startX = 0;
-    let startY = 0;
-    let score = 0;
+let player = { x: 240, y: 600, w: 40, h: 60, speed: 5, hasBall: true };
+let enemy = { x: 240, y: 350, w: 40, h: 60, speed: 3 };
+let ball = { x: player.x, y: player.y - 20, vx: 0, vy: 0, inAir: false };
 
-    function startDrag(e) {
-        isDragging = true;
-        startX = e.clientX || e.touches[0].clientX;
-        startY = e.clientY || e.touches[0].clientY;
+let scorePlayer = 0;
+let scoreEnemy = 0;
+
+let shotPower = 0;
+let charging = false;
+
+// INPUT
+let keys = {};
+document.addEventListener("keydown", (e) => keys[e.key] = true);
+document.addEventListener("keyup", (e) => keys[e.key] = false);
+
+// Touch (shoot)
+let touchStartY = 0;
+canvas.addEventListener("touchstart", (e) => {
+    touchStartY = e.touches[0].clientY;
+    charging = true;
+});
+canvas.addEventListener("touchend", (e) => {
+    charging = false;
+    shootBall();
+});
+
+// PC shoot (space)
+document.addEventListener("keyup", (e) => {
+    if (e.key === " ") shootBall();
+});
+
+// Gerakan musuh (AI sederhana)
+function updateEnemy() {
+    if (enemy.x < player.x) enemy.x += enemy.speed;
+    if (enemy.x > player.x) enemy.x -= enemy.speed;
+}
+
+// Gerakan pemain
+function updatePlayer() {
+    if (keys["ArrowLeft"]) player.x -= player.speed;
+    if (keys["ArrowRight"]) player.x += player.speed;
+    player.x = Math.max(20, Math.min(canvas.width - 20, player.x));
+}
+
+// Power bar
+function updatePower() {
+    if (charging) {
+        shotPower += 0.4;
+        if (shotPower > 22) shotPower = 22;
     }
+}
 
-    function endDrag(e) {
-        if (!isDragging) return;
-        isDragging = false;
+// Animasi bola
+function updateBall() {
+    if (!ball.inAir) {
+        ball.x = player.x;
+        ball.y = player.y - 25;
+    } else {
+        ball.vy += 0.3;
+        ball.x += ball.vx;
+        ball.y += ball.vy;
 
-        let endX = e.clientX || e.changedTouches[0].clientX;
-        let endY = e.clientY || e.changedTouches[0].clientY;
-
-        let forceX = (endX - startX) * 0.2;
-        let forceY = (endY - startY) * 0.2;
-
-        shootBall(forceX, forceY);
-    }
-
-    function shootBall(forceX, forceY) {
-        let posX = window.innerWidth / 2;
-        let posY = window.innerHeight - 100;
-        let velX = forceX;
-        let velY = -Math.abs(forceY) - 12; 
-
-        function animate() {
-            velY += 0.6;
-            posX += velX;
-            posY += velY;
-
-            ball.style.left = posX + "px";
-            ball.style.top = posY + "px";
-
-            const bRect = ball.getBoundingClientRect();
-            const hRect = hoop.getBoundingClientRect();
-
-            if (
-                bRect.top < hRect.bottom &&
-                bRect.bottom > hRect.top &&
-                bRect.left < hRect.right &&
-                bRect.right > hRect.left
-            ) {
-                score++;
-                scoreDisplay.textContent = "Skor: " + score;
-
-                message.textContent = "Masuk! 🏀";
-                message.style.display = "block";
-                setTimeout(() => message.style.display = "none", 700);
-
-                resetBall();
-                return;
-            }
-
-            if (posY > window.innerHeight) {
-                resetBall();
-                return;
-            }
-
-            requestAnimationFrame(animate);
+        // Check masuk ring (zona atas)
+        if (ball.y < 120 && ball.x > 180 && ball.x < 300) {
+            scorePlayer++;
+            resetBall();
         }
 
-        animate();
+        // Bola jatuh keluar lapangan
+        if (ball.y > 750) resetBall();
     }
+}
 
-    function resetBall() {
-        ball.style.left = "50%";
-        ball.style.top = "calc(100% - 100px)";
-    }
+// Tembakan
+function shootBall() {
+    if (ball.inAir) return;
 
-    ball.addEventListener("mousedown", startDrag);
-    ball.addEventListener("touchstart", startDrag);
+    ball.inAir = true;
+    ball.vx = (Math.random() - 0.5) * 2;
+    ball.vy = -shotPower;
+    shotPower = 0;
+}
 
-    window.addEventListener("mouseup", endDrag);
-    window.addEventListener("touchend", endDrag);
+// Reset posisi bola
+function resetBall() {
+    ball.inAir = false;
+    ball.vx = 0;
+    ball.vy = 0;
+}
+
+// Gambar karakter
+function drawCharacter(obj, color) {
+    ctx.fillStyle = color;
+    ctx.fillRect(obj.x - obj.w/2, obj.y - obj.h/2, obj.w, obj.h);
+
+    // Kepala
+    ctx.beginPath();
+    ctx.arc(obj.x, obj.y - obj.h/2 - 10, 15, 0, Math.PI*2);
+    ctx.fillStyle = "#ffe39f";
+    ctx.fill();
+}
+
+// Gambar bola
+function drawBall() {
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, 10, 0, Math.PI*2);
+    ctx.fillStyle = "#ff9a00";
+    ctx.fill();
+}
+
+// Gambar ring
+function drawHoop() {
+    ctx.fillStyle = "#ff4444";
+    ctx.fillRect(180, 70, 120, 10);
+    ctx.strokeStyle = "white";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(200, 80, 80, 5); // area scoring
+}
+
+// HUD
+function drawScore() {
+    ctx.fillStyle = "white";
+    ctx.font = "20px Arial";
+    ctx.fillText("You: " + scorePlayer, 20, 40);
+}
+
+// Power bar
+function drawPower() {
+    ctx.fillStyle = "#444";
+    ctx.fillRect(20, 660, 200, 20);
+    ctx.fillStyle = "#ffd400";
+    ctx.fillRect(20, 660, shotPower * 9, 20);
+}
+
+// LOOP utama
+function loop() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    updatePlayer();
+    updateEnemy();
+    updateBall();
+    updatePower();
+
+    drawHoop();
+    drawCharacter(player, "#66aaff");
+    drawCharacter(enemy, "#ff6666");
+    drawBall();
+    drawScore();
+    drawPower();
+
+    requestAnimationFrame(loop);
+}
+
+loop();
 </script>
 
 </body>
